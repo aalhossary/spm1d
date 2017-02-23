@@ -33,6 +33,72 @@ import numpy as np
 from . _plot import DataPlotter, SPMPlotter, SPMiPlotter, _legend_manual
 
 
+def boxplot(y, ax=None, x=None, whisker_option=0, plot_outliers=True, colors=dict(median='k', box='k', whiskers='b', outliers='r'), linewidths=dict(median=3, box=1, whiskers=1), outlier_size=3, face_color='0.7', face_alpha=0.7):
+	'''
+	Create a 1D box-and-whiskers plot.
+
+	y:
+		(J x Q) data array where:
+		J = number of responses
+		Q = number of 1D continuum nodes
+
+
+	- *x* --- optional vector of x positions  [default: np.arange(datum.size)]
+
+	whisker_option:
+		(following "Types of box plots" at https://en.wikipedia.org/wiki/Box_plot)
+		0 : 0th and 100th percentiles  (i.e. minimum and maximum)
+		1 : 2nd and 98th percentiles
+		2 : 9th and 91st percentiles
+		3 : min/max values within 1.5 IQR of lower and upper quartiles
+		4 : one standard deviation (above and below mean)
+
+	plot_outliers:
+		True : plot outliers as dots (outliers lie beyond whiskers)
+		False : do not plot outliers
+
+	colors:
+		(a dictionary of color strings with the following keys and default values)
+		median   = 'k'  #black
+		box      = 'k'  #black
+		whiskers = 'b'  #blue
+		outliers = 'r'  #red
+	'''
+	J,Q      = y.shape
+	plotter  = DataPlotter(ax)
+	plotter._set_x(x, Q)
+	### plot median and box:
+	y1,y2,y3 = np.percentile(y, [25,50,75], axis=0)
+	plotter.plot(y2, color=colors['median'], lw=linewidths['median'])
+	plotter.plot_cloud([y1,y3], face_color, colors['box'], face_alpha)
+	### calculate whiskers:
+	if whisker_option==0:
+		y0,y4    = y.min(axis=0), y.max(axis=0)
+	elif whisker_option==1:
+		y0,y4    = np.percentile(y, [2,98], axis=0)
+	elif whisker_option==2:
+		y0,y4    = np.percentile(y, [9,91], axis=0)
+	elif whisker_option==3:
+		iqr      = y3 - y1
+		z0,z4    = y1 - 1.5*iqr, y3 + 1.5*iqr
+		y0,y4    = y.min(axis=0), y.max(axis=0)
+		y0,y4    = np.max([z0,y0], axis=0), np.min([z4,y4], axis=0)
+	elif whisker_option==4:
+		mn,sd    = y.mean(axis=0), y.std(axis=0, ddof=1)
+		y0,y4    = mn-sd, mn+sd
+	else:
+		raise(ValueError('whisker_option must be an integer between 0 and 4.'))
+	### plot whiskers:
+	plotter.plot( np.array([y0,y4]).T, color=colors['whiskers'], lw=linewidths['whiskers']  )
+	plotter._set_xlim()
+	### outliers:
+	if plot_outliers:
+		w     = y.copy()
+		for i in range(J):
+			ii = np.logical_and(w[i] >= y0, w[i] <= y4)
+			w[i][ii]  = np.nan
+		plotter.plot(w.T, 'r.', lw=1, markersize=outlier_size)
+	return w
 
 
 def legend_manual(ax, colors=None, labels=None, linestyles=None, markerfacecolors=None, linewidths=None, **kwdargs):
