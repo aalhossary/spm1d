@@ -25,7 +25,7 @@ from . _clusters import Cluster
 def df2str(df):
 	return str(df) if not df%1 else '%.3f'%df
 def dflist2str(dfs):
-	return '(%s, %s)' %(df2str(dfs[0]), df2str(dfs[1]))
+	return 'None' if dfs is None else '(%s, %s)' %(df2str(dfs[0]), df2str(dfs[1]))
 def p2string(p):
 	return '<0.001' if p<0.0005 else '%.03f'%p
 def plist2string(pList):
@@ -211,6 +211,14 @@ class SPM0D_X2(_SPM0D):
 		p      = rft1d.chi2.sf0d( self.z, self.df[1])
 		return SPM0Di_X2(self, alpha, zstar, p)
 
+class SPM0D_Z(_SPM0D):
+	def __init__(self, z, residuals=None):
+		_SPM0D.__init__(self, 'Z', z, None, residuals=residuals)
+	def inference(self, alpha=0.05):
+		zstar  = rft1d.norm.isf0d( alpha )
+		p      = rft1d.norm.sf0d( self.z )
+		return SPM0Di_Z(self, alpha, zstar, p)
+
 
 
 class SPM0Di_F(_SPMF, _SPM0Dinference):
@@ -226,7 +234,9 @@ class SPM0Di_T2(_SPM0Dinference):
 class SPM0Di_X2(_SPM0Dinference):
 	'''An SPM{X2} (0D) inference object.'''
 	pass
-
+class SPM0Di_Z(_SPM0Dinference):
+	'''An SPM{Z} (0D) inference object.'''
+	pass
 
 
 
@@ -284,7 +294,9 @@ class _SPM(_SPMParent):
 
 	def _build_spmi(self, alpha, zstar, clusters, p_set, two_tailed):
 		p_clusters  = [c.P for c in clusters]
-		if self.STAT == 'T':
+		if self.STAT == 'Z':
+			spmi    = SPMi_Z(self, alpha,  zstar, clusters, p_set, p_clusters, two_tailed)
+		elif self.STAT == 'T':
 			spmi    = SPMi_T(self, alpha,  zstar, clusters, p_set, p_clusters, two_tailed)
 		elif self.STAT == 'F':
 			spmi    = SPMi_F(self, alpha,  zstar, clusters, p_set, p_clusters, two_tailed)
@@ -357,7 +369,9 @@ class _SPM(_SPMParent):
 		return clusters
 
 	def _isf(self, a, withBonf):   #Inverse survival function (random field theory)
-		if self.STAT == 'T':
+		if self.STAT == 'Z':
+			zstar = rft1d.norm.isf_resels(a, None, self.resels, withBonf=withBonf, nNodes=self.Q)
+		elif self.STAT == 'T':
 			zstar = rft1d.t.isf_resels(a, self.df[1], self.resels, withBonf=withBonf, nNodes=self.Q)
 		elif self.STAT == 'F':
 			zstar = rft1d.f.isf_resels(a, self.df, self.resels, withBonf=withBonf, nNodes=self.Q)
@@ -373,7 +387,10 @@ class _SPM(_SPMParent):
 		if nUpcrossings>0:
 			extents       = [c.extentR for c in clusters]
 			minextent     = min(extents)
-			if self.STAT == 'T':
+			if self.STAT == 'Z':
+				p_set = rft1d.norm.p_set_resels(nUpcrossings, minextent, zstar, None, self.resels, withBonf=withBonf, nNodes=self.Q)
+				p_set = min(1, 2*p_set) if two_tailed else p_set
+			elif self.STAT == 'T':
 				p_set = rft1d.t.p_set_resels(nUpcrossings, minextent, zstar, self.df[1], self.resels, withBonf=withBonf, nNodes=self.Q)
 				p_set = min(1, 2*p_set) if two_tailed else p_set
 			elif self.STAT == 'F':
@@ -564,6 +581,26 @@ class SPM_X2(_SPM):
 
 
 
+class SPM_Z(_SPM):
+	def __init__(self, z, fwhm, resels, X=None, beta=None, residuals=None, sigma2=None, roi=None):
+		super(SPM_Z, self).__init__('Z', z, None, fwhm, resels, X, beta, residuals, sigma2=sigma2, roi=roi)
+
+	def inference(self, alpha=0.05, cluster_size=0, two_tailed=True, interp=True, circular=False):
+		'''
+		Conduct statistical inference using random field theory.
+		
+		:Parameters:
+		
+		alpha        : Type I error rate (default: 0.05)
+		
+		cluster_size : Minimum cluster size of interest (default: 0), smaller clusters will be ignored
+		:Returns:
+		
+		A **spm1d._spm.SPMi_F** instance.
+		'''
+		return _SPM.inference(self, alpha, cluster_size, two_tailed=two_tailed, interp=interp, circular=circular)
+
+
 
 
 
@@ -640,6 +677,9 @@ class SPMi_T2(_SPMinference):
 	pass
 class SPMi_X2(_SPMinference):
 	'''An SPM{X2} inference continuum.'''
+	pass
+class SPMi_Z(_SPMinference):
+	'''An SPM{Z} inference continuum.'''
 	pass
 
 

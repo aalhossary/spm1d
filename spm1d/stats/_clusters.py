@@ -133,7 +133,10 @@ class Cluster(_Cluster):
 	def inference(self, STAT, df, fwhm, resels, two_tailed, withBonf, nNodes):
 		self.extentR        = float(self.extent) / fwhm
 		k,u                 = self.extentR, self.h
-		if STAT == 'T':
+		if STAT == 'Z':
+			p = rft1d.norm.p_cluster_resels(k, u, None, resels, withBonf=withBonf, nNodes=nNodes)
+			p = min(1, 2*p) if two_tailed else p
+		elif STAT == 'T':
 			p = rft1d.t.p_cluster_resels(k, u, df[1], resels, withBonf=withBonf, nNodes=nNodes)
 			p = min(1, 2*p) if two_tailed else p
 		elif STAT == 'F':
