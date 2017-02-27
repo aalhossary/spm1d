@@ -292,18 +292,18 @@ class _SPM(_SPMParent):
 		# return '(1x%d) %s field' %(self.Q, self.STAT)
 	
 
-	def _build_spmi(self, alpha, zstar, clusters, p_set, two_tailed):
+	def _build_spmi(self, alpha, zstar, clusters, p_max, p_set, two_tailed):
 		p_clusters  = [c.P for c in clusters]
 		if self.STAT == 'Z':
-			spmi    = SPMi_Z(self, alpha,  zstar, clusters, p_set, p_clusters, two_tailed)
+			spmi    = SPMi_Z(self, alpha,  zstar, clusters, p_max, p_set, p_clusters, two_tailed)
 		elif self.STAT == 'T':
-			spmi    = SPMi_T(self, alpha,  zstar, clusters, p_set, p_clusters, two_tailed)
+			spmi    = SPMi_T(self, alpha,  zstar, clusters, p_max, p_set, p_clusters, two_tailed)
 		elif self.STAT == 'F':
-			spmi    = SPMi_F(self, alpha,  zstar, clusters, p_set, p_clusters, two_tailed)
+			spmi    = SPMi_F(self, alpha,  zstar, clusters, p_max, p_set, p_clusters, two_tailed)
 		elif self.STAT == 'T2':
-			spmi    = SPMi_T2(self, alpha, zstar, clusters, p_set, p_clusters, two_tailed)
+			spmi    = SPMi_T2(self, alpha, zstar, clusters, p_max, p_set, p_clusters, two_tailed)
 		elif self.STAT == 'X2':
-			spmi    = SPMi_X2(self, alpha, zstar, clusters, p_set, p_clusters, two_tailed)
+			spmi    = SPMi_X2(self, alpha, zstar, clusters, p_max, p_set, p_clusters, two_tailed)
 		return spmi
 		
 	def _cluster_geom(self, u, interp, circular, csign=+1, z=None):
@@ -381,6 +381,22 @@ class _SPM(_SPMParent):
 			zstar = rft1d.chi2.isf_resels(a, self.df[1], self.resels, withBonf=withBonf, nNodes=self.Q)
 		return zstar
 
+	def _max_inference(self, two_tailed, withBonf):
+		zmax      = np.abs(self.z).max() if two_tailed else self.z.max()
+		if self.STAT == 'Z':
+			p     = rft1d.norm.sf_resels(zmax, None, self.resels, withBonf=withBonf, nNodes=self.Q)
+		elif self.STAT == 'T':
+			p     = rft1d.t.sf_resels(zmax, self.df[1], self.resels, withBonf=withBonf, nNodes=self.Q)
+		elif self.STAT == 'F':
+			p     = rft1d.f.sf_resels(zmax, self.df, self.resels, withBonf=withBonf, nNodes=self.Q)
+		elif self.STAT == 'T2':
+			p     = rft1d.R2.sf_resels(zmax, self.df, self.resels, withBonf=withBonf, nNodes=self.Q)
+		elif self.STAT == 'X2':
+			p     = rft1d.chi2.sf_resels(zmax, self.df[1], self.resels, withBonf=withBonf, nNodes=self.Q)
+		if two_tailed:
+			p     = min(1.0, 2*p)
+		return p
+	
 	def _setlevel_inference(self, zstar, clusters, two_tailed, withBonf):
 		nUpcrossings  = len(clusters)
 		p_set         = 1.0
@@ -416,7 +432,8 @@ class _SPM(_SPMParent):
 		clusters   = self._get_clusters(zstar, check_neg, interp, circular)  #assemble all suprathreshold clusters
 		clusters   = self._cluster_inference(clusters, two_tailed, withBonf)  #conduct cluster-level inference
 		p_set      = self._setlevel_inference(zstar, clusters, two_tailed, withBonf)  #conduct set-level inference
-		spmi       = self._build_spmi(alpha, zstar, clusters, p_set, two_tailed)    #assemble SPMi object
+		p_max      = self._max_inference(two_tailed, withBonf)
+		spmi       = self._build_spmi(alpha, zstar, clusters, p_max, p_set, two_tailed)    #assemble SPMi object
 		return spmi
 
 	def plot(self, **kwdargs):
@@ -618,13 +635,14 @@ class _SPMinference(_SPM):
 	
 	isinference = True
 	
-	def __init__(self, spm, alpha, zstar, clusters, p_set, p, two_tailed=False):
+	def __init__(self, spm, alpha, zstar, clusters, p_max, p_set, p, two_tailed=False):
 		_SPM.__init__(self, spm.STAT, spm.z, spm.df, spm.fwhm, spm.resels, X=spm.X, beta=spm.beta, residuals=spm.residuals, sigma2=spm.sigma2, roi=spm.roi)
 		self.alpha       = alpha               #Type I error rate
 		self.zstar       = zstar               #critical threshold
 		self.clusters    = clusters            #supra-threshold cluster information
 		self.nClusters   = len(clusters)       #number of supra-threshold clusters
 		self.h0reject    = self.nClusters > 0  #null hypothesis rejection decision
+		self.p_max       = p_max               #maximum value
 		self.p_set       = p_set               #set-level p value
 		self.p           = p                   #cluster-level p values
 		self.two_tailed  = two_tailed          #two-tailed test boolean
@@ -633,6 +651,7 @@ class _SPMinference(_SPM):
 
 	def __repr__(self):
 		stat     = 't' if self.STAT == 'T' else self.STAT
+		approx   = ' (approximate)' if self.p_max > 0.5 else ''
 		s        = ''
 		s       += 'SPM{%s} inference field\n' %stat
 		if self.isanova:
@@ -645,6 +664,7 @@ class _SPMinference(_SPM):
 		s       += '   SPM.alpha     :  %.3f\n' %self.alpha
 		s       += '   SPM.zstar     :  %.5f\n' %self.zstar
 		s       += '   SPM.h0reject  :  %s\n' %self.h0reject
+		s       += '   SPM.p_max     :  %s%s\n' %(p2string(self.p_max), approx)
 		s       += '   SPM.p_set     :  %s\n' %p2string(self.p_set)
 		s       += '   SPM.p_cluster :  (%s)\n\n\n' %plist2string(self.p)
 		return s

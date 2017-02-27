@@ -89,16 +89,19 @@ class _DatasetT2(_Dataset):
 class _DatasetX2(_Dataset):
 	STAT  = 'X2'
 class _DatasetK2(_Dataset):
-	STAT = 'K2'
+	STAT  = 'K2'
 class _DatasetSW(_Dataset):
-	STAT = 'W'
-
+	STAT  = 'W'
+class _DatasetMVNorm(_Dataset):
+	STAT  = 'X2'
 
 
 
 
 class DatasetNormality(_DatasetK2):
 	design = "Normality test (D'Agostino-Pearson K2)"
+class DatasetNormalityMV(_DatasetMVNorm):
+	design = "Multivariate normality test (Royston)"
 class DatasetNormalitySW(_DatasetSW):
 	design = 'Normality test (Shapiro-Wilk)'
 class DatasetNormality1D(DatasetNormality, Dataset1D):
