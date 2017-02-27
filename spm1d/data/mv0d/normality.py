@@ -41,7 +41,7 @@ class Iris(_base.DatasetNormalityMV):
 
 class IrisTwoComponents(Iris):
 	def _set_values(self):
-		super(Iris2, self)._set_values()
+		super(IrisTwoComponents, self)._set_values()
 		self.Y    = self.Y[:,:2]
 		self.z    = 2.698277
 		self.df   = None
