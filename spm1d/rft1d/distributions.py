@@ -106,7 +106,7 @@ All distributions share the following functions:
 from math import sqrt,log,exp
 import numpy as np
 from scipy import stats
-from . prob import RFTCalculator, RFTCalculatorResels
+from . prob import RFTCalculator, RFTCalculatorResels, henze_zirkler_mu_sigma
 
 
 def add_docstrings(distname, ndf=0):
@@ -565,39 +565,17 @@ class HotellingsT2(_RFTDistribution):
 		return stats.f.sf(uF, v1, v2)
 
 
+
+
 @add_docstrings('HZ', ndf=2)
 class HenzeZirkler(_RFTDistribution):
 	def __init__(self):
 		super(HenzeZirkler, self).__init__('HZ', 2)
-	@staticmethod
-	def get_mu_sigma(J, I):
-		'''
-		J = number of observations
-		I = number of vector components
-		
-		Modified from:
-		https://www.mathworks.com/matlabcentral/fileexchange/17931-hzmvntest
-		'''
-		n,p    = float(J), float(I)
-		### shape information:
-		b      = 2**-0.5 * ((2*p + 1)/4)**(1/(p + 4))*(n**(1/(p + 4)))
-		b2     = b**2
-		### shape parameters:
-		wb     = (1 + b2) * (1 + 3*b2)
-		a      = 1 + 2*b2
-		mu     = 1 - a**(-p/2) *   (1 + p*b2/a + (p*(p + 2)*(b2*b2))/(2*a**2))
-		mu2    = mu**2
-		si2    = 2*(1 + 4*b2)**(- p/2) + 2*a**(-p)*(1 + (2*p*b2*b2)/a**2 + (3*p *
-		    (p + 2)*b**8)/(4*a**4)) - 4*wb**( - p/2)*(1 + (3*p*b**4)/(2*wb) + (p *
-		    (p + 2)*b**8)/(2*wb**2))
-		pmu    = log(   sqrt(  mu2*mu2 / (si2 + mu2)  )   )
-		psigma = sqrt(  log(  (si2 + mu2)/mu2  )  )
-		return pmu, psigma
 	def isf(self, alpha, df, nodes, FWHM, withBonf=False):
 		return super(HenzeZirkler, self).isf(alpha, df, nodes, FWHM, withBonf)
 	def isf0d(self, alpha, df):
 		J,I              = df
-		mu,sigma         = self.get_mu_sigma(J, I)
+		mu,sigma         = henze_zirkler_mu_sigma(J, I)
 		shape,loc,scale  = sigma, 0, exp(mu)
 		return stats.lognorm.isf(alpha, shape, loc, scale)
 	def p_cluster(self, k, u, df, nodes, FWHM, withBonf=False):
@@ -608,7 +586,7 @@ class HenzeZirkler(_RFTDistribution):
 		return super(HenzeZirkler, self).sf(u, df, nodes, FWHM, withBonf)
 	def sf0d(self, u, df):
 		J,I              = df
-		mu,sigma         = self.get_mu_sigma(J, I)
+		mu,sigma         = henze_zirkler_mu_sigma(J, I)
 		shape,loc,scale  = sigma, 0, exp(mu)   ### http://stackoverflow.com/questions/8870982/how-do-i-get-a-lognormal-distribution-in-python-with-mu-and-sigma/42481670#42481670
 		return stats.lognorm.sf(u, shape, loc, scale)
 

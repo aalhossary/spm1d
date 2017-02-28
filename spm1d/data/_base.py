@@ -93,7 +93,7 @@ class _DatasetK2(_Dataset):
 class _DatasetSW(_Dataset):
 	STAT  = 'W'
 class _DatasetMVNorm(_Dataset):
-	STAT  = 'X2'
+	STAT  = 'Z'
 
 
 
