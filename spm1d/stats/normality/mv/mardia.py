@@ -1,6 +1,6 @@
 
 '''
-Multivariate normality testing
+Multivariate normality testing (Mardia's test)
 
 All procedures fit the given model, calculate residuals then use
 "normality.residuals" to conduct a Mardia-Rencher test
@@ -20,6 +20,8 @@ from ... _mvbase import _resel_counts as mv_resel_counts
 def skewness_single_node(y):
 	'''
 	Compute the Mardia-Rencher test statistics for skewness and kurtosis at a single node.
+	
+	y :  (J x I) or (J x Q x I) array of residuals
 
 	References:
 
@@ -35,11 +37,9 @@ def skewness_single_node(y):
 	### assemble array shape information:
 	J,I      = map(float, y.shape)   #nResponses, nVector components
 	### compute SIGMA:
-	m        = y.mean(axis=0)
-	D        = np.matrix(y - m)
+	D        = np.matrix(y)
 	SIGMA    = np.cov( D.T, ddof=0)
 	SIGMAi   = np.matrix( np.linalg.inv( SIGMA ) )
-	a,b      = None, None
 	### compute skewness:
 	mij      = np.array( D * SIGMAi * D.T )
 	skew     = (mij**3).sum() / (J**2)
@@ -58,24 +58,32 @@ def residuals(y):
 	'''
 	y     = np.asarray(y)
 	J,I   = y.shape[0], y.shape[-1]
-	if J < 20:
-		raise( ValueError('In order to conduct multivariate normality tests there must at least 20 observations. Only %d found.' %J)   )
+	# if J < 20:
+	# 	raise( ValueError('In order to conduct multivariate normality tests there must at least 20 observations. Only %d found.' %J)   )
 	v     = 1./6 * I * (I+1) * (I+2)   #degrees of freedom (for skewness)
 	if np.ndim(y)==2:
-		z      = skewness_single_node(y)
-		spm    = SPM0D_X2(z, (1,v), residuals=y)   #skewness
+		z       = skewness_single_node(y)
+		spm     = SPM0D_X2(z, (1,v), residuals=y)   #skewness
 	else:
-		Q         = y.shape[1]
-		z         = np.array( [skewness_single_node(y[:,i,:])   for i in range(Q)] ).T
-		fwhm      = estimate_mvfwhm(y)
-		resels    = mv_resel_counts(y, fwhm, roi=None)
-		spm       = SPM_X2(z, (1,v), fwhm, resels, residuals=y)
+		Q       = y.shape[1]
+		z       = np.array( [skewness_single_node(y[:,i,:])   for i in range(Q)] ).T
+		fwhm    = estimate_mvfwhm(y)
+		resels  = mv_resel_counts(y, fwhm, roi=None)
+		spm     = SPM_X2(z, (1,v), fwhm, resels, residuals=y)
 	return spm
 
 
 
 
+def onesample(y):
+	r   = y - y.mean(axis=0)
+	return residuals(r)
 
+
+
+# def hotellings(y, skewness=True, kurtosis=False):
+# 	r   = y - y.mean(axis=0)
+# 	return residuals(r, skewness, kurtosis)
 
 
 
@@ -205,9 +213,7 @@ def residuals(y):
 
 
 
-# def hotellings(y, skewness=True, kurtosis=False):
-# 	r   = y - y.mean(axis=0)
-# 	return residuals(r, skewness, kurtosis)
+
 
 
 

@@ -12,14 +12,14 @@ Future plans include:
 
 __version__  = '0.1.4 spm1d'   #(2016.10.01)
 
-from . import data, distributions, geom, prob, random
+from . import data, distributions, geom, prob, random, util
 
 randn1d      = random.randn1d
 multirandn1d = random.multirandn1d
 
 chi2         = distributions.chi2
 f            = distributions.f
-hz           = distributions.hz
+lognorm      = distributions.lognorm
 norm         = distributions.norm
 t            = distributions.t
 T2           = distributions.T2

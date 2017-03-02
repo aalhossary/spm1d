@@ -106,13 +106,21 @@ All distributions share the following functions:
 from math import sqrt,log,exp
 import numpy as np
 from scipy import stats
-from . prob import RFTCalculator, RFTCalculatorResels, henze_zirkler_mu_sigma
+from . prob import RFTCalculator, RFTCalculatorResels
+from . util import henze_zirkler_mu_sigma, lognorm2norm, norm2lognorm
+
+
+
+
+
 
 
 def add_docstrings(distname, ndf=0):
 	def add_docstrings_decorator(cls):
-		### this decorator was adapted from:
-		### http://stackoverflow.com/questions/8100166/inheriting-methods-docstrings-in-python
+		'''
+		This decorator was adapted from:
+		http://stackoverflow.com/questions/8100166/inheriting-methods-docstrings-in-python
+		'''
 		for name, func in vars(cls).items():
 			if not func.__doc__:
 				for parent in cls.__bases__:
@@ -137,8 +145,6 @@ def add_docstrings(distname, ndf=0):
 						break
 		return cls
 	return add_docstrings_decorator
-
-
 
 
 
@@ -567,39 +573,88 @@ class HotellingsT2(_RFTDistribution):
 
 
 
-@add_docstrings('HZ', ndf=2)
-class HenzeZirkler(_RFTDistribution):
+# @add_docstrings('lognorm', ndf=2)
+class LogNormal(_RFTDistribution):
+	'''
+	Log-Normal distributions typically use a (mu,sigma) parameterization
+	but SciPy uses a (shape, loc, scale) parameterization.
+	The relation amongst these parameters is as follows:
+	
+		shape = sigma
+		loc   = 0
+		scale = exp(mu)
+	
+	See link below for an extended explanation:
+	http://stackoverflow.com/questions/8870982/how-do-i-get-a-lognormal-distribution-in-python-with-mu-and-sigma/42481670#42481670
+	'''
 	def __init__(self):
-		super(HenzeZirkler, self).__init__('HZ', 2)
+		super(LogNormal, self).__init__('LOG(Z)', 2)
 	def isf(self, alpha, df, nodes, FWHM, withBonf=False):
-		return super(HenzeZirkler, self).isf(alpha, df, nodes, FWHM, withBonf)
+		mu,sigma  = df
+		zstar     = norm.isf(alpha, nodes, FWHM, withBonf)
+		return norm2lognorm(zstar, mu, sigma)
 	def isf0d(self, alpha, df):
-		J,I              = df
-		mu,sigma         = henze_zirkler_mu_sigma(J, I)
+		'''
+		Inverse survival function (0D) for the log-normal distribution
+		
+		:Examples:
+
+			>>> alpha = 0.05
+			>>> mu    = 0
+			>>> sigma = 1
+			>>> rft1d.lognorm.isf0d(alpha, (mu, sigma))    #5.18025
+			
+			>>> shape = sigma
+			>>> loc   = 0
+			>>> scale = exp(mu)
+			>>> scipy.stats.lognorm.isf(alpha, shape, loc, scale)  #5.18025
+		'''
+		mu,sigma         = df
 		shape,loc,scale  = sigma, 0, exp(mu)
 		return stats.lognorm.isf(alpha, shape, loc, scale)
+		### same as:    norm2lognorm(   stats.norm.isf(alpha),  mu, sigma   )
 	def p_cluster(self, k, u, df, nodes, FWHM, withBonf=False):
-		return super(HenzeZirkler, self).p_cluster(k, u, df, nodes, FWHM, withBonf)
+		mu,sigma  = df
+		u         = lognorm2norm(u, mu, sigma)
+		return norm.p_cluster(k, u, nodes, FWHM, withBonf)
 	def p_set(self, c, k, u, df, nodes, FWHM, withBonf=False):
-		return super(HenzeZirkler, self).p_set(c, k, u, df, nodes, FWHM, withBonf)
+		mu,sigma  = df
+		u         = lognorm2norm(u, mu, sigma)
+		return norm.p_set(c, k, u, nodes, FWHM, withBonf)
 	def sf(self, u, df, nodes, FWHM, withBonf=False):
-		return super(HenzeZirkler, self).sf(u, df, nodes, FWHM, withBonf)
+		mu,sigma  = df
+		z         = lognorm2norm(u, mu, sigma)
+		return norm.sf(z, nodes, FWHM, withBonf)
 	def sf0d(self, u, df):
-		J,I              = df
-		mu,sigma         = henze_zirkler_mu_sigma(J, I)
-		shape,loc,scale  = sigma, 0, exp(mu)   ### http://stackoverflow.com/questions/8870982/how-do-i-get-a-lognormal-distribution-in-python-with-mu-and-sigma/42481670#42481670
+		'''
+		Survival function (0D) for the log-normal distribution
+		
+		:Examples:
+
+			>>> x     = 2
+			>>> mu    = 0
+			>>> sigma = 1
+			>>> rft1d.lognorm.sf0d(x, (mu, sigma))    #p = 0.24411
+			
+			>>> shape = sigma
+			>>> loc   = 0
+			>>> scale = exp(mu)
+			>>> scipy.stats.lognorm.sf(x, shape, loc, scale)  #p = 0.24411
+		'''
+		mu,sigma         = df
+		shape,loc,scale  = sigma, 0, exp(mu)
 		return stats.lognorm.sf(u, shape, loc, scale)
+		### same as:    stats.norm.sf(  lognorm2norm(u, mu, sigma)  )
 
 
 
+norm    = Gaussian()
+lognorm = LogNormal()
+t       = StudentsT()
+chi2    = Chi2()
+f       = FisherSnedecorF()
+T2      = HotellingsT2()
 
-
-norm   = Gaussian()
-t      = StudentsT()
-chi2   = Chi2()
-f      = FisherSnedecorF()
-T2     = HotellingsT2()
-hz     = HenzeZirkler()
 
 
 

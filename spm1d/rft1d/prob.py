@@ -26,32 +26,6 @@ eps         = np.finfo(np.float).eps
 
 
 
-def henze_zirkler_mu_sigma(J, I):
-	'''
-	J = number of observations
-	I = number of vector components
-
-	Modified from:
-	https://www.mathworks.com/matlabcentral/fileexchange/17931-hzmvntest
-	'''
-	n,p    = float(J), float(I)
-	### shape information:
-	b      = 2**-0.5 * ((2*p + 1)/4)**(1/(p + 4))*(n**(1/(p + 4)))
-	b2     = b**2
-	### shape parameters:
-	wb     = (1 + b2) * (1 + 3*b2)
-	a      = 1 + 2*b2
-	mu     = 1 - a**(-p/2) *   (1 + p*b2/a + (p*(p + 2)*(b2*b2))/(2*a**2))
-	mu2    = mu**2
-	si2    = 2*(1 + 4*b2)**(- p/2) + 2*a**(-p)*(1 + (2*p*b2*b2)/a**2 + (3*p *
-	    (p + 2)*b**8)/(4*a**4)) - 4*wb**( - p/2)*(1 + (3*p*b**4)/(2*wb) + (p *
-	    (p + 2)*b**8)/(2*wb**2))
-	pmu    = log(   sqrt(  mu2*mu2 / (si2 + mu2)  )   )
-	psigma = sqrt(  log(  (si2 + mu2)/mu2  )  )
-	return pmu, psigma
-
-
-
 def p_bonferroni(STAT, z, df, Q, n=1):
 	'''
 	Bonferroni correction.
@@ -83,7 +57,7 @@ def p_bonferroni(STAT, z, df, Q, n=1):
 	'''
 	if STAT=='Z':
 		p     = stats.norm.sf(z)
-	if STAT=='T':
+	elif STAT=='T':
 		p     = stats.t.sf(z, df[1])
 	elif STAT=='F':
 		p     = stats.f.sf(z, df[0], df[1])
@@ -94,10 +68,6 @@ def p_bonferroni(STAT, z, df, Q, n=1):
 		v0,v1 = p, m - p + 1
 		zz    = z * ( (m-p+1)/(p*m) )
 		p     = stats.f.sf(zz, v0, v1)
-	if STAT=='HZ':
-		mu,sigma         = henze_zirkler_mu_sigma(*df)
-		shape,loc,scale  = sigma, 0, exp(mu)
-		p     = stats.lognorm.sf(z, shape, loc, scale)
 	p         = Q * (p**n)
 	return min(p, 1)
 
@@ -120,13 +90,16 @@ def _replaceWith0DpValueIfPossible(STAT, P, c, csize, z, df, Q, n=1):
 		return P
 
 def ec_density_Z(z):
+	'''
+	Euler characteristic densities for Gaussian fields
+	'''
 	ec0d        = 1 - stats.norm.cdf(z)
 	ec1d        = SQRT_4LOG2 / TWO_PI   *  exp(-0.5*(z*z))
 	return [ec0d, ec1d]
 
-
 def ec_density_T(z, df):
 	'''
+	Euler characteristic densities for T fields
 	Reference:  Worsley KJ et al. (1996) Hum Brain Mapp 4:58-73
 	Reference:  Worsley KJ et al. (2004) [Eqn.2 and Table 2]
 	'''
@@ -161,19 +134,10 @@ def ec_density_X2(z, df):
 	return EC
 
 
-def ec_density_HZ(z, df):
-	mu,sigma        = henze_zirkler_mu_sigma(*df)
-	shape,loc,scale = sigma, 0, exp(mu)
-	ec0d            = 1 - stats.lognorm.cdf(z, shape, loc, scale)
-	# ec1d            = - 1.0/(2*z**2  * TWO_PI ) * SQRT_4LOG2 / (z**2 * TWO_PI)   *  exp(-0.5*( log(z)**2 ) )
-	# ec1d            = SQRT_4LOG2 / (8*z**4 * TWO_PI)   *  exp(-0.5*( log(z)**2 ) )
-	return [ec0d, ec1d]
-
-
 def ec_density(STAT, z, df):
 	if STAT=='Z':
 		return ec_density_Z(z)
-	if STAT=='T':
+	elif STAT=='T':
 		return ec_density_T(z, df)
 	elif STAT=='F':
 		return ec_density_F(z, df)
@@ -184,10 +148,8 @@ def ec_density(STAT, z, df):
 		df_F = p, m - p + 1
 		zz   = z * ( (m-p+1)/(p*m) )
 		return ec_density_F(zz, df_F)
-	elif STAT=='HZ':
-		return ec_density_HZ(z, df)
 	else:
-		raise(ValueError('Statistic must be one of: ["Z", "T", "X2", "F", "T2", "HZ"]'))
+		raise(ValueError('Statistic must be one of: ["Z", "T", "X2", "F", "T2"]'))
 
 
 def poisson_cdf(a, b):
@@ -379,12 +341,8 @@ def _approx_threshold(STAT, alpha, df, resels, n):
 		df_F  = p, m - p + 1
 		fstar = stats.f.isf(a, df_F[0], df_F[1])
 		zstar = fstar / ( (m-p+1)/(p*m) )
-	elif STAT=='HZ':
-		mu,sigma         = henze_zirkler_mu_sigma(*df)
-		shape,loc,scale  = sigma, 0, exp(mu)
-		zstar            = stats.lognorm.isf(alpha, shape, loc, scale)
 	else:
-		raise(ValueError, 'Statistic must be one of: "Z", "T", "X2", "F", "T2", "HZ"')
+		raise(ValueError, 'Statistic must be one of: "Z", "T", "X2", "F", "T2"')
 	return zstar
 
 def isf(STAT, alpha, df, resels, n, Q=None, version='spm12'):

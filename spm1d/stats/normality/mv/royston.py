@@ -1,10 +1,10 @@
 
 
 '''
-Multivariate normality testing
+Multivariate normality testing (Roytson's test)
 
 All procedures fit the given model, calculate residuals then use
-"normality.residuals" to conduct a Mardia-Rencher test
+"normality.residuals" to conduct Roytson's test
 on the multivariate residuals.
 '''
 
@@ -65,8 +65,6 @@ def royston_single_node(X):
 	e   = p / (1 + (p-1)*mC)
 	H   = e * R.sum() / p  #Royston's statistic
 	return H,e
-	# P   = scipy.stats.chi2.sf(H, e)  #probability value
-	# return H,e,P
 
 
 def residuals(y):
@@ -76,8 +74,8 @@ def residuals(y):
 	'''
 	y     = np.asarray(y)
 	J,I   = y.shape[0], y.shape[-1]
-	if J < 20:
-		raise( ValueError('In order to conduct multivariate normality tests there must at least 20 observations. Only %d found.' %J)   )
+	# if J < 20:
+	# 	raise( ValueError('In order to conduct multivariate normality tests there must at least 20 observations. Only %d found.' %J)   )
 	if np.ndim(y)==2:
 		w,e    = royston_single_node(y)
 		spm    = SPM0D_X2(w, (1,e), residuals=y)
@@ -91,3 +89,9 @@ def residuals(y):
 	return spm
 
 
+
+
+def onesample(y):
+	r   = y - y.mean(axis=0)
+	return residuals(r)
+	
