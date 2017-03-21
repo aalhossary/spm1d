@@ -390,7 +390,7 @@ class _SPM(_SPMParent):
 		elif self.STAT == 'F':
 			p     = rft1d.f.sf_resels(zmax, self.df, self.resels, withBonf=withBonf, nNodes=self.Q)
 		elif self.STAT == 'T2':
-			p     = rft1d.R2.sf_resels(zmax, self.df, self.resels, withBonf=withBonf, nNodes=self.Q)
+			p     = rft1d.T2.sf_resels(zmax, self.df, self.resels, withBonf=withBonf, nNodes=self.Q)
 		elif self.STAT == 'X2':
 			p     = rft1d.chi2.sf_resels(zmax, self.df[1], self.resels, withBonf=withBonf, nNodes=self.Q)
 		if two_tailed:
