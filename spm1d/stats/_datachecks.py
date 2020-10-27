@@ -153,7 +153,7 @@ class DataCheckerTtest(DataChecker):
 		self.check_array(self.Y)
 		self.check_2d(self.Y)
 		self.check_size(self.Y)
-		self.check_zero_variance(self.Y)
+		self.check_zero_variance(self.Y, only_warning=True)
 
 class DataCheckerTtest2(DataChecker):
 	def __init__(self, YA, YB):
@@ -165,7 +165,7 @@ class DataCheckerTtest2(DataChecker):
 		[self.check_2d(Y) for Y in YY]
 		[self.check_size(Y) for Y in YY]
 		self.check_equal_Q(self.YA, self.YB)
-		[self.check_zero_variance(Y) for Y in YY]
+		[self.check_zero_variance(Y, only_warning=True) for Y in YY]
 
 class DataCheckerTtestPaired(DataCheckerTtest2):
 	def check(self):
